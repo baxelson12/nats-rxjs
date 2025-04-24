@@ -1,0 +1,19 @@
+{
+  "name": "nats-rxjs",
+  "version": "0.0.1",
+  "module": "src/index.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "rxjs": "^7.8.2",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@nats-io/transport-node": "^3.0.2"
+  }
+}
