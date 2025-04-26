@@ -198,6 +198,7 @@ export class NatsRxjsClient {
     return this.connection$.pipe(
       first(),
       switchMap((nc) => {
+        console.log("Before isClosed check");
         if (nc.isClosed()) {
           return throwError(
             () =>
@@ -205,7 +206,9 @@ export class NatsRxjsClient {
           );
         }
 
+        console.log("Before returning new observable");
         return new Observable<DecodedNatsMsg<T>>((subscriber) => {
+          console.log("Before nc subscription");
           const sub = nc.subscribe(subject, {
             callback: (err, msg) => {
               if (err) {
@@ -223,7 +226,10 @@ export class NatsRxjsClient {
             },
             ...options,
           });
-          return () => sub.drain();
+          return () => {
+            console.log("Unsubscribing from NATS listen");
+            return sub.drain();
+          };
         });
       }),
     );
