@@ -16,6 +16,7 @@ import {
   from,
   map,
   Observable,
+  of,
   share,
   Subject,
   switchMap,
@@ -73,27 +74,22 @@ export class NatsRxjsClient {
     }
     this.config = config;
 
+    // Create a shared observable for the connection using defer and share.
+    // defer() ensures the connection logic runs only when the first subscription occurs.
+    // share() ensures subsequent subscriptions reuse the same connection attempt/instance.
     this.connection$ = defer(() => {
-      console.log("Beginning NATS connection.");
-      // Already connected
+      // Check if already connected when the factory runs (could happen with share's behavior)
       if (this.connectionInstance && !this.connectionInstance.isClosed()) {
-        console.log("NATS was already connected.");
-        return from(Promise.resolve(this.connectionInstance));
+        console.log("[NatsRxClient] Using existing connection.");
+        return of(this.connectionInstance); // Return existing connection as an Observable
       }
 
-      // Connecting now
-      if (this.isConnecting) {
-        console.log("NATS is connecting now.");
-        return this.connectionError$.pipe(
-          take(1),
-          switchMap((err) => throwError(() => err)),
-          () => this.connection$,
-        );
-      }
+      // Proceed with new connection attempt
+      console.log(
+        `[NatsRxClient] Initiating new connection to NATS at ${this.config.servers}...`,
+      );
 
-      console.log("Initialize a new connection");
-      // Initialize new connection
-      this.isConnecting = true;
+      // Attempt connection using nats.connect, wrapped in 'from' to make it an Observable
       return from(
         connect({
           servers: this.config.servers,
@@ -101,18 +97,35 @@ export class NatsRxjsClient {
         }),
       ).pipe(
         tap((nc: NatsConnection) => {
-          this.isConnecting = false;
-          this.connectionInstance = nc;
-          this.monitorConnection(nc);
+          // Success path: Store the connection instance and start monitoring
+          this.connectionInstance = nc; // Store the instance
+          console.log(
+            `[NatsRxClient] Connected successfully to ${nc.getServer()}`,
+          );
+          this.monitorConnection(nc); // Start monitoring connection status
         }),
-        catchError((err: ErrorResult) => {
-          this.isConnecting = false;
-          this.connectionInstance = null;
-          this.connectionError$.next(err);
-          return throwError(() => err);
+        catchError((err: any) => {
+          // Error path: Clear the instance and propagate the error
+          this.connectionInstance = null; // Clear instance on error
+          console.error("[NatsRxClient] Connection failed:", err);
+          return throwError(() => err); // Propagate error downstream
         }),
+        // Optional: Add finalize() here if you need cleanup logic regardless of success/error
+        // during the connection attempt itself.
       );
-    });
+    }).pipe(
+      // share() handles multicasting and reference counting.
+      // It ensures the defer factory (connection logic) runs only when the first
+      // subscriber arrives and tears down the source subscription (disconnects)
+      // when the last subscriber leaves.
+      share({
+        // Configuration options for share (optional, defaults are usually fine):
+        resetOnError: false, // If true (default), connection$ would be retryable on error. Set to false if connection error is fatal.
+        resetOnComplete: false, // If true (default), connection$ would restart if source completes. NATS connection doesn't typically complete.
+        resetOnRefCountZero: true, // If true (default), unsubscribe from source (triggering disconnect) when subscriber count hits zero. This is desired.
+      }),
+      // share() // Basic share operator often suffices
+    );
   }
 
   /**
