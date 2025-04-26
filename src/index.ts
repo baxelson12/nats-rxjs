@@ -191,7 +191,7 @@ export class NatsRxjsClient {
    * @param options Optional NATS subscription options.
    * @returns An Observable emitting messages pertaining to given subject.
    */
-  public subscribe<T>(
+  public listen<T>(
     subject: string,
     options?: SubscriptionOptions,
   ): Observable<DecodedNatsMsg<T>> {
