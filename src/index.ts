@@ -74,13 +74,16 @@ export class NatsRxjsClient {
     this.config = config;
 
     this.connection$ = defer(() => {
+      console.log("Beginning NATS connection.");
       // Already connected
       if (this.connectionInstance && !this.connectionInstance.isClosed()) {
+        console.log("NATS was already connected.");
         return from(Promise.resolve(this.connectionInstance));
       }
 
       // Connecting now
       if (this.isConnecting) {
+        console.log("NATS is connecting now.");
         return this.connectionError$.pipe(
           take(1),
           switchMap((err) => throwError(() => err)),
@@ -88,6 +91,7 @@ export class NatsRxjsClient {
         );
       }
 
+      console.log("Initialize a new connection");
       // Initialize new connection
       this.isConnecting = true;
       return from(
@@ -195,6 +199,7 @@ export class NatsRxjsClient {
     subject: string,
     options?: SubscriptionOptions,
   ): Observable<DecodedNatsMsg<T>> {
+    console.log("Listen called");
     return this.connection$.pipe(
       first(),
       switchMap((nc) => {
