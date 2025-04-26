@@ -108,7 +108,7 @@ export class NatsRxjsClient {
           return throwError(() => err);
         }),
       );
-    }).pipe(share({ resetOnRefCountZero: true }));
+    });
   }
 
   /**
@@ -226,7 +226,6 @@ export class NatsRxjsClient {
           return () => sub.drain();
         });
       }),
-      share({ resetOnRefCountZero: true }),
     );
   }
 
