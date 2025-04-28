@@ -270,7 +270,7 @@ export class NatsRxjsClient {
     return this.connection$.pipe(
       first(),
       switchMap((nc) => {
-        const data = payload ? JSON.stringify(payload) : undefined;
+        const data = payload ? JSON.stringify(payload) : JSON.stringify({});
         if (nc.isClosed()) {
           return throwError(
             () =>
